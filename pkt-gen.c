@@ -2875,8 +2875,6 @@ main(int arc, char **argv)
    g.virt_header = 0;
    g.wait_link = 2;	/* wait 2 seconds for physical ports */
 
-   printf ("simon was here\n");
-
    while ((ch = getopt(arc, argv, "46a:f:F:Nn:i:Il:d:s:D:S:b:c:o:p:"
                "T:w:WvR:XC:H:rP:zZAhBM:")) != -1) {
 
