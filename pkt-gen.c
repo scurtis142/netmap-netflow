@@ -241,6 +241,10 @@ struct mac_range {
 	struct ether_addr start, end;
 };
 
+struct netflow_table {
+   int placeholder;
+};
+
 /* ifname can be netmap:foo-xxxx */
 #define MAX_IFNAMELEN	512	/* our buffer for ifname */
 //#define MAX_PKTSIZE	1536
@@ -262,6 +266,7 @@ struct glob_arg {
 	struct ip_range dst_ip;
 	struct mac_range dst_mac;
 	struct mac_range src_mac;
+   struct netflow_table *n_table;
 	int pkt_size;
 	int pkt_min_size;
 	int burst;
@@ -285,6 +290,7 @@ struct glob_arg {
 #define OPT_RANDOM_SRC  512
 #define OPT_RANDOM_DST  1024
 #define OPT_PPS_STATS   2048
+#define OPT_NETFLOW 4096
 	int dev_type;
 #ifndef NO_PCAP
 	pcap_t *p;
@@ -1771,8 +1777,24 @@ receive_pcap(u_char *user, const struct pcap_pkthdr * h,
 #endif /* !NO_PCAP */
 
 
+static struct netflow_table* netflow_table_init (void) {
+   struct netflow_table *table = malloc (sizeof (struct netflow_table));
+   table->placeholder = 0;
+   D("Placeholder got to netflow table init\n");
+   return table;
+}
+
+
+/* NOTE: This function isn't threadsafe !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
+static void
+netflow_table_insert(struct netflow_table *table, const char *_p, int len, struct netmap_ring *ring, int cur) {
+   /* Placeholder code */
+   table->placeholder += sizeof (table) + sizeof(_p) + sizeof(len) + sizeof (ring) + cur;
+   D("table placeholder = %d\n", table->placeholder);
+}
+
 static int
-receive_packets(struct netmap_ring *ring, u_int limit, int dump, uint64_t *bytes)
+receive_packets(struct netmap_ring *ring, u_int limit, int dump, int netflow, struct netflow_table *table, uint64_t *bytes)
 {
    u_int head, rx, n;
    uint64_t b = 0;
@@ -1792,6 +1814,8 @@ receive_packets(struct netmap_ring *ring, u_int limit, int dump, uint64_t *bytes
       *bytes += slot->len;
       if (dump)
          dump_payload(p, slot->len, ring, head);
+      if (netflow)
+         netflow_table_insert(table, p, slot->len, ring, head);
       if (!(slot->flags & NS_MOREFRAG))
          complete++;
 
@@ -1860,6 +1884,7 @@ receiver_body(void *data)
    } else {
       /* SIMONS NOTE: We get to this else statement in our case */
       int dump = targ->g->options & OPT_DUMP;
+      int netflow = targ->g->options & OPT_NETFLOW;
 
       nifp = targ->nmd->nifp;
       while (!targ->cancel) {
@@ -1872,7 +1897,6 @@ receiver_body(void *data)
             goto quit;
          }
 #else /* !BUSYWAIT */
-         D("Simon was here 7\n");
          /* SIMONS NOTE: We get to this branch of the ifdef in our case */
          if (poll(&pfd, 1, 1 * 1000) <= 0 && !targ->g->forever) {
             clock_gettime(CLOCK_REALTIME_PRECISE, &targ->toc);
@@ -1898,9 +1922,7 @@ receiver_body(void *data)
             if (nm_ring_empty(rxring))
                continue;
 
-            dump = 1;
-
-            m = receive_packets(rxring, targ->g->burst, dump, &cur.bytes);
+            m = receive_packets(rxring, targ->g->burst, dump, netflow, targ->g->n_table, &cur.bytes);
             cur.pkts += m;
             if (m > 0)
                cur.events++;
@@ -2495,6 +2517,7 @@ usage(int errcode)
 "				OPT_RANDOM_SRC  512\n"
 "				OPT_RANDOM_DST  1024\n"
 "				OPT_PPS_STATS   2048\n"
+"				OPT_NETFLOW     4096\n"
 		     "",
 		cmd);
 	exit(errcode);
@@ -2839,6 +2862,7 @@ main(int arc, char **argv)
    g.dst_ip.name = "10.1.0.1";
    g.dst_mac.name = "ff:ff:ff:ff:ff:ff";
    g.src_mac.name = NULL;
+   g.n_table = NULL;
    g.pkt_size = 60;
    g.pkt_min_size = 0;
    g.nthreads = 1;
@@ -3226,14 +3250,20 @@ out:
 
 
    if (g.options) {
-      D("--- SPECIAL OPTIONS:%s%s%s%s%s%s\n",
+      D("--- SPECIAL OPTIONS:%s%s%s%s%s%s%s\n",
             g.options & OPT_PREFETCH ? " prefetch" : "",
             g.options & OPT_ACCESS ? " access" : "",
             g.options & OPT_MEMCPY ? " memcpy" : "",
             g.options & OPT_INDIRECT ? " indirect" : "",
             g.options & OPT_COPY ? " copy" : "",
+            g.options & OPT_NETFLOW ? " netflow" : "",
             g.options & OPT_RUBBISH ? " rubbish " : "");
    }
+
+   if (g.options & OPT_NETFLOW) {
+      g.n_table = netflow_table_init();
+   }
+   D("table works %d\n", g.n_table->placeholder);
 
    g.tx_period.tv_sec = g.tx_period.tv_nsec = 0;
    if (g.tx_rate > 0) {
