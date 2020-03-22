@@ -75,6 +75,8 @@
 #endif
 
 #include "ctrs.h"
+#include "netflow-table.h"
+#include "netflow-table.c"
 
 static void usage(int);
 
@@ -239,10 +241,6 @@ struct ip_range {
 struct mac_range {
 	char *name;
 	struct ether_addr start, end;
-};
-
-struct netflow_table {
-   int placeholder;
 };
 
 /* ifname can be netmap:foo-xxxx */
@@ -1777,22 +1775,6 @@ receive_pcap(u_char *user, const struct pcap_pkthdr * h,
 #endif /* !NO_PCAP */
 
 
-static struct netflow_table* netflow_table_init (void) {
-   struct netflow_table *table = malloc (sizeof (struct netflow_table));
-   table->placeholder = 0;
-   D("Placeholder got to netflow table init\n");
-   return table;
-}
-
-
-/* NOTE: This function isn't threadsafe !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
-static void
-netflow_table_insert(struct netflow_table *table, const char *_p, int len, struct netmap_ring *ring, int cur) {
-   /* Placeholder code */
-   table->placeholder += sizeof (table) + sizeof(_p) + sizeof(len) + sizeof (ring) + cur;
-   D("table placeholder = %d\n", table->placeholder);
-}
-
 static int
 receive_packets(struct netmap_ring *ring, u_int limit, int dump, int netflow, struct netflow_table *table, uint64_t *bytes)
 {
@@ -3261,7 +3243,6 @@ out:
    if (g.options & OPT_NETFLOW) {
       g.n_table = netflow_table_init();
    }
-   D("table works %d\n", g.n_table->placeholder);
 
    g.tx_period.tv_sec = g.tx_period.tv_nsec = 0;
    if (g.tx_rate > 0) {
