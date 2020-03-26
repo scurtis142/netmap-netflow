@@ -78,6 +78,7 @@
 #include "netflow-table.h"
 #include "netflow-table.c"
 
+
 static void usage(int);
 
 #ifdef _WIN32
@@ -1781,6 +1782,8 @@ receive_packets(struct netmap_ring *ring, u_int limit, int dump, int netflow, st
    u_int head, rx, n;
    uint64_t b = 0;
    u_int complete = 0;
+   netflow_key_t key;
+   netflow_value_t value;
 
    if (bytes == NULL)
       bytes = &b;
@@ -1796,8 +1799,12 @@ receive_packets(struct netmap_ring *ring, u_int limit, int dump, int netflow, st
       *bytes += slot->len;
       if (dump)
          dump_payload(p, slot->len, ring, head);
-      if (netflow)
-         netflow_table_insert(table, p, slot->len, ring, head);
+      if (netflow) {
+         /* XXX RING AND HEAD USED IN DUMP PAYLOAD ARE JUST USED FOR DEBUG/PRINTING PURPOSES, THEY ARE NOT USED IN DECODING THE PACKET */
+         if (get_netflow_k_v (p, slot->len, &key, &value)) {
+            netflow_table_insert(table, &key, &value);
+         }
+      }
       if (!(slot->flags & NS_MOREFRAG))
          complete++;
 
@@ -2720,6 +2727,10 @@ main_thread(struct glob_arg *g)
       if (!timerisset(&toc) || timespec_ge(&targs[i].toc, &t_toc))
          toc = timespec2val(&targs[i].toc);
    }
+
+   /* print netflow table */
+   if (g->options & OPT_NETFLOW)
+      netflow_table_print_stats(g->n_table);
 
    /* print output. */
    timersub(&toc, &tic, &toc);
