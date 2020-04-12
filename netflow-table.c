@@ -14,8 +14,8 @@ struct netflow_table* netflow_table_init (void) {
    table            = malloc (sizeof (struct netflow_table));
    if(table == NULL)
       exit(1);
-   table->array     = NULL;// malloc (sizeof (hashBucket_t) * TABLE_INITIAL_SIZE); /* allocates each one in the insert as needed */
-  // bzero (table->array, sizeof (hashBucket_t));
+   table->array     = malloc (sizeof (hashBucket_t *) * TABLE_INITIAL_SIZE); /* allocates each one in the insert as needed */
+   bzero (table->array, sizeof (hashBucket_t *) * TABLE_INITIAL_SIZE);
    table->n_entries = TABLE_INITIAL_SIZE;
 
    return table;
@@ -44,8 +44,6 @@ int get_netflow_k_v (const char *_p, int len, netflow_key_t *key, netflow_value_
             key->port_src = ntohs(*(uint16_t *)p);
             p+=2;
             key->port_dst = ntohs(*(uint16_t *)p);
-            /* printf ("key: proto = %d, src_ip = %d, dst_ip = %d, src_port = %d, dst_port = %d\n", */
-            /*       key->proto, key->ip_src, key->ip_dst, key->port_src, key->port_dst); */
             return 1;
 
          } else {
@@ -84,7 +82,7 @@ void netflow_table_insert (struct netflow_table *table, netflow_key_t *key, netf
 
    /* there might be some weird c thing here cause it was declared as a 
       pointer (**) but accessed as an array so idk */
-   bucket = table->array;
+   bucket = table->array[idx];
    previous_pointer = bucket;
 
    /* MAKE SURE ARRAY IS INITIALISED IN INIT FUNCTION */
@@ -112,19 +110,17 @@ void netflow_table_insert (struct netflow_table *table, netflow_key_t *key, netf
       new_bucket->proto     = key->proto;
       new_bucket->ip_src    = key->ip_src;
       new_bucket->ip_dst    = key->ip_dst;
-      new_bucket->proto     = key->proto;
       new_bucket->port_src  = key->port_src;
       new_bucket->port_dst  = key->port_dst;
       new_bucket->bytesSent = val->bytes;
       new_bucket->pktSent   = val->packets;
-      //printf ("val->bytes = %d\n", val->bytes);
+      new_bucket->next = NULL;
 
-      if (notfound) previous_pointer->next = new_bucket;
-      else {
-         table->array = new_bucket;
-      }
+      if (notfound)
+         previous_pointer->next = new_bucket;
+      else
+         table->array[idx] = new_bucket;
    }
-   //printf ("table->array->bytes = %lu\n", table->array->bytesSent);
 }
 
 
@@ -147,11 +143,12 @@ void netflow_table_print_stats (struct netflow_table *table) {
    printf ("\nprinting flow table statistics\n");
    for (unsigned int i = 0; i < table->n_entries; i++) {
       //printf("i=%d\n", i);
-		bucket = table->array;
-		if (bucket != NULL) {
+		bucket = table->array[i];
+		while (bucket != NULL) {
          //printf ("got here\n");
          total_bytes += bucket->bytesSent;
          total_pkts  += bucket->pktSent;
+         bucket = bucket->next;
 		}
 	}
 
