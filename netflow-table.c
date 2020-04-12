@@ -117,14 +117,14 @@ void netflow_table_insert (struct netflow_table *table, netflow_key_t *key, netf
       new_bucket->port_dst  = key->port_dst;
       new_bucket->bytesSent = val->bytes;
       new_bucket->pktSent   = val->packets;
-      printf ("val->bytes = %d\n", val->bytes);
+      //printf ("val->bytes = %d\n", val->bytes);
 
       if (notfound) previous_pointer->next = new_bucket;
       else {
          table->array = new_bucket;
       }
    }
-   printf ("table->array->bytes = %lu\n", table->array->bytesSent);
+   //printf ("table->array->bytes = %lu\n", table->array->bytesSent);
 }
 
 
@@ -146,10 +146,10 @@ void netflow_table_print_stats (struct netflow_table *table) {
    
    printf ("\nprinting flow table statistics\n");
    for (unsigned int i = 0; i < table->n_entries; i++) {
-      printf("i=%d\n", i);
+      //printf("i=%d\n", i);
 		bucket = table->array;
 		if (bucket != NULL) {
-         printf ("got here\n");
+         //printf ("got here\n");
          total_bytes += bucket->bytesSent;
          total_pkts  += bucket->pktSent;
 		}
