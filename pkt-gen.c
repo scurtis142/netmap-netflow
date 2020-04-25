@@ -2729,8 +2729,11 @@ main_thread(struct glob_arg *g)
    }
 
    /* print netflow table */
-   if (g->options & OPT_NETFLOW)
+   if (g->options & OPT_NETFLOW) {
+      if (g->options & OPT_DUMP)
+         netflow_table_print(g->n_table);
       netflow_table_print_stats(g->n_table);
+   }
 
    /* print output. */
    timersub(&toc, &tic, &toc);

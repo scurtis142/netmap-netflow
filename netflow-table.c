@@ -129,9 +129,30 @@ void netflow_table_insert (struct netflow_table *table, netflow_key_t *key, netf
 /* } */
 
 
-/* void netflow_table_print (struct netflow_table *table) { */
+void netflow_table_print (struct netflow_table *table) {
+   hashBucket_t *bucket;
+   struct in_addr src_addr;
+   struct in_addr dst_addr;
 
-/* } */
+   printf ("\nPrinting Flow Table\n");
+   for (unsigned int i = 0; i < table->n_entries; i++) {
+		bucket = table->array[i];
+		while (bucket != NULL) {
+         src_addr.s_addr = ntohl(bucket->ip_src);
+         dst_addr.s_addr = ntohl(bucket->ip_dst);
+         printf ("IP Source:     %s\n", inet_ntoa(src_addr));
+         printf ("IP Destin:     %s\n", inet_ntoa(dst_addr));
+         printf ("Port Source:   %d\n", bucket->port_src);
+         printf ("Port Destin:   %d\n", bucket->port_dst);
+         printf ("Protocol:      %d\n", bucket->proto);
+         printf ("Packets:       %ld\n", bucket->pktSent);
+         printf ("Bytes:         %ld\n", bucket->bytesSent);
+         printf("\n");
+
+         bucket = bucket->next;
+		}
+	}
+}
 
 
 void netflow_table_print_stats (struct netflow_table *table) {
@@ -139,20 +160,21 @@ void netflow_table_print_stats (struct netflow_table *table) {
 
    uint64_t total_bytes = 0;
    uint64_t total_pkts = 0;
+   uint64_t non_null_entries = 0;
    
-   printf ("\nprinting flow table statistics\n");
+   printf ("\nPrinting Flow Table Statistics\n");
    for (unsigned int i = 0; i < table->n_entries; i++) {
-      //printf("i=%d\n", i);
 		bucket = table->array[i];
 		while (bucket != NULL) {
-         //printf ("got here\n");
          total_bytes += bucket->bytesSent;
          total_pkts  += bucket->pktSent;
+         non_null_entries++;
          bucket = bucket->next;
 		}
 	}
 
+   printf ("Entries     = %lu\n", non_null_entries);
    printf ("total bytes = %lu\n", total_bytes);
    printf ("total pkts  = %lu\n", total_pkts);
-
+   printf("\n");
 }
