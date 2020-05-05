@@ -2,3 +2,7 @@ pkt-gen
 pkt-gen-b
 pkt-gen-b.o
 *.swp
+rte_crc_arm64.h
+rte_hash_crc.h
+rte_table_netflow.c
+rte_table_netflow.h
