@@ -156,8 +156,8 @@ void netflow_table_print (struct netflow_table *table) {
 
 
 void netflow_table_print_stats (struct netflow_table *table) {
-   hashBucket_t *bucket;
 
+   hashBucket_t *bucket;
    uint64_t total_bytes = 0;
    uint64_t total_pkts = 0;
    uint64_t non_null_entries = 0;
@@ -177,4 +177,75 @@ void netflow_table_print_stats (struct netflow_table *table) {
    printf ("total bytes = %lu\n", total_bytes);
    printf ("total pkts  = %lu\n", total_pkts);
    printf("\n");
+}
+
+
+void netflow_table_export_to_file (struct netflow_table *table, const char *filename) {
+   int buf_size = EXPORT_BUF_INITAL_SIZE;
+   int fd;
+   int snp_res;
+   size_t buf_end_offset = 0;
+   char *buf;
+   const char *tmpfile = "/tmp/netflow-export-tmp.csv";
+   hashBucket_t *bucket;
+   struct in_addr src_addr;
+   struct in_addr dst_addr;
+
+   if ((buf = malloc (sizeof (char) * buf_size)) == NULL) {
+      printf ("malloc failed with %s\n", strerror (errno));
+      exit (1);
+   }
+
+   for (unsigned int i = 0; i < table->n_entries; i++) {
+		bucket = table->array[i];
+		while (bucket != NULL) {
+         /* Free space needed in buffer is maximum number of digits needed to represent
+          * an entry which is 91(including null byte) */
+         if ((buf_size - buf_end_offset) <= 91) {
+            if ((buf = realloc (buf, buf_size * 2)) == NULL) {
+               printf ("realloc failed with error %s\n", strerror (errno));
+               exit (1);
+            } else {
+               buf_size *= 2;
+            }
+         }
+         src_addr.s_addr = ntohl(bucket->ip_src);
+         dst_addr.s_addr = ntohl(bucket->ip_dst);
+
+         snp_res = snprintf ((buf + buf_end_offset), 91, "%s,%s,%d,%d,%d,%lu,%lu\n",
+               inet_ntoa(src_addr),
+               inet_ntoa(dst_addr),
+               ntohs(bucket->port_src),
+               ntohs(bucket->port_dst),
+               bucket->proto,
+               bucket->bytesSent,
+               bucket->pktSent);
+         if (snp_res < 0) {
+            printf ("sprintf failed with %s\n", strerror (errno));
+            exit (1);
+         }
+         buf_end_offset += snp_res;
+         bucket = bucket->next;
+		}
+	}
+
+
+   /* More effeciant to just do a single write */
+   if ((fd = open (tmpfile, O_WRONLY | O_CREAT, S_IRWXU | S_IRWXO)) < 0) { /* Returns non-negative integer on success */
+      printf ("open failed with error %s\n", strerror (errno));
+      exit (1);
+   }
+
+   if((int)buf_end_offset != write (fd, buf, buf_end_offset)) {
+      printf ("write didn't return expected number of bytes\n");
+      exit (1);
+   }
+
+   if (close (fd) != 0) { /* Returns 0 on success */
+      printf ("close failed with error %s\n", strerror (errno));
+      exit (1);
+   }
+
+   rename (tmpfile, filename);
+   return;
 }

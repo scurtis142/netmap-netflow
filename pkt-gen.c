@@ -2733,6 +2733,7 @@ main_thread(struct glob_arg *g)
       if (g->options & OPT_DUMP)
          netflow_table_print(g->n_table);
       netflow_table_print_stats(g->n_table);
+      netflow_table_export_to_file(g->n_table, "/tmp/netflow.csv");
    }
 
    /* print output. */
