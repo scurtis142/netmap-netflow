@@ -32,28 +32,31 @@ int get_netflow_k_v (const char *_p, int len, netflow_key_t *key, netflow_value_
 
    if (0x0800 == ntohs(*(uint16_t *)p)) {//if type == ipv4
       p += 4;//pointing to total length;
-      if (len - 14 == ntohs(*(uint16_t *)p)) {//check length packet - eth header = length of ipv4 packet
-         value->bytes = ntohs(*(uint16_t *)p);
-         value->packets = 1;
-         p += 7;//pointing at protocol
-         if (0x06 == *p) {//if protocol = tcp
-            key->proto = *p;
-            p+=3;//pointing to src
-            key->ip_src = ntohl(*(uint32_t *)p);
-            p+=4;
-            key->ip_dst = ntohl(*(uint32_t *)p);
-            p+=4;
-            key->port_src = ntohs(*(uint16_t *)p);
-            p+=2;
-            key->port_dst = ntohs(*(uint16_t *)p);
-            return 1;
+      /* if (len - 14 == ntohs(*(uint16_t *)p)) {//check length packet - eth header = length of ipv4 packet */
+      value->bytes = ntohs(*(uint16_t *)p);
+      value->packets = 1;
+      p += 7;//pointing at protocol
+      if (0x06 == *p) {//if protocol = tcp
+         key->proto = *p;
+         p+=3;//pointing to src
+         key->ip_src = ntohl(*(uint32_t *)p);
+         p+=4;
+         key->ip_dst = ntohl(*(uint32_t *)p);
+         p+=4;
+         key->port_src = ntohs(*(uint16_t *)p);
+         p+=2;
+         key->port_dst = ntohs(*(uint16_t *)p);
+         // here we just want to return non-negative to indicate success,
+         // but im also lazy to get rid of the len argument so we are
+         // going to return that so it can be used.
+         return len+1;
 
-         } else {
-            printf ("protocol not tcp\n");
-         }
       } else {
-         printf("length dosen't match\n");
+         printf ("protocol not tcp, it is %d\n", *p);
       }
+      /* } else { */
+      /*    printf("length dosen't match\n"); */
+      /* } */
    }else{
       printf("type not ipv4\n");
    }
@@ -71,8 +74,8 @@ void netflow_table_insert (struct netflow_table *table, netflow_key_t *key, netf
    hashBucket_t *new_bucket = NULL;
    hashBucket_t *previous_pointer = NULL;
    uint32_t idx = 0;
-   uint8_t notfound = 0; 
-   uint8_t updated = 0; 
+   uint8_t notfound = 0;
+   uint8_t updated = 0;
 
    idx = crc32c_1word (key->proto, idx);
    idx = crc32c_1word (key->ip_src, idx);
@@ -83,7 +86,7 @@ void netflow_table_insert (struct netflow_table *table, netflow_key_t *key, netf
 
    sem_wait (&n_table_mutex);
 
-   /* there might be some weird c thing here cause it was declared as a 
+   /* there might be some weird c thing here cause it was declared as a
       pointer (**) but accessed as an array so idk */
    bucket = table->array[idx];
    previous_pointer = bucket;
@@ -165,7 +168,7 @@ void netflow_table_print_stats (struct netflow_table *table) {
    uint64_t total_bytes = 0;
    uint64_t total_pkts = 0;
    uint64_t non_null_entries = 0;
-   
+
    printf ("\nPrinting Flow Table Statistics\n");
    for (unsigned int i = 0; i < table->n_entries; i++) {
 		bucket = table->array[i];
