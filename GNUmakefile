@@ -15,7 +15,7 @@ CFLAGS += -I $(SRCDIR)/sys -I $(SRCDIR)/apps/include -I $(SRCDIR)/libnetmap
 CFLAGS += -Wextra -Wno-address-of-packed-member
 
 LDFLAGS = -L $(BUILDDIR)/build-libnetmap
-LDLIBS += -lpthread -lm -lnetmap
+LDLIBS += -lpthread -lm -lnetmap -lrt
 ifeq ($(shell uname),Linux)
 	LDLIBS += -lrt	# on linux
 endif

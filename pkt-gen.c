@@ -583,6 +583,17 @@ sigint_h(int sig)
    }
 }
 
+/* Thread for exporting to file */
+void*
+export_thread_func (void* arg)
+{
+   struct netflow_table * table = (struct netflow_table *) arg;
+   while (1) {
+      sleep (1);
+      netflow_table_export_to_file (table, "/tmp/netflow.csv");
+   }
+}
+
 /* sysctl wrapper to return the number of active CPUs */
 static int
 system_ncpus(void)
@@ -2846,6 +2857,8 @@ main(int arc, char **argv)
 
    struct td_desc *fn = func;
 
+   pthread_t exp_thread; /* Thread for exporting NetFlow to file */
+
    bzero(&g, sizeof(g));
 
    g.main_fd = -1;
@@ -3257,6 +3270,7 @@ out:
 
    if (g.options & OPT_NETFLOW) {
       g.n_table = netflow_table_init();
+      pthread_create(&exp_thread, NULL, export_thread_func, (void *) g.n_table);
    }
 
    g.tx_period.tv_sec = g.tx_period.tv_nsec = 0;

@@ -1,16 +1,18 @@
 #include <stdlib.h>
 #include <libnetmap.h>
+#include <pthread.h>
+#include <semaphore.h>
 
 #include "netflow-table.h"
 #include "hash.c"
 
-
-/* NOTE: NONE OF THESE ARE THREAD SAFE */
+sem_t n_table_mutex;
 
 struct netflow_table* netflow_table_init (void) {
    struct netflow_table *table;
 
    D("Initialising NetFlow Table\n");
+   sem_init (&n_table_mutex, 0, 1);
    table            = malloc (sizeof (struct netflow_table));
    if(table == NULL)
       exit(1);
@@ -64,7 +66,6 @@ int get_netflow_k_v (const char *_p, int len, netflow_key_t *key, netflow_value_
 /* } */
 
 
-/* NOTE: This function isn't threadsafe !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 void netflow_table_insert (struct netflow_table *table, netflow_key_t *key, netflow_value_t *val) {
    hashBucket_t *bucket = NULL;
    hashBucket_t *new_bucket = NULL;
@@ -79,6 +80,8 @@ void netflow_table_insert (struct netflow_table *table, netflow_key_t *key, netf
    idx = crc32c_1word (key->port_src, idx);
    idx = crc32c_1word (key->port_dst, idx);
    idx = idx % table->n_entries;
+
+   sem_wait (&n_table_mutex);
 
    /* there might be some weird c thing here cause it was declared as a 
       pointer (**) but accessed as an array so idk */
@@ -121,6 +124,7 @@ void netflow_table_insert (struct netflow_table *table, netflow_key_t *key, netf
       else
          table->array[idx] = new_bucket;
    }
+   sem_post(&n_table_mutex);
 }
 
 
@@ -196,6 +200,8 @@ void netflow_table_export_to_file (struct netflow_table *table, const char *file
       exit (1);
    }
 
+   sem_wait(&n_table_mutex);
+
    for (unsigned int i = 0; i < table->n_entries; i++) {
 		bucket = table->array[i];
 		while (bucket != NULL) {
@@ -229,6 +235,7 @@ void netflow_table_export_to_file (struct netflow_table *table, const char *file
 		}
 	}
 
+   sem_post(&n_table_mutex);
 
    /* More effeciant to just do a single write */
    if ((fd = open (tmpfile, O_WRONLY | O_CREAT, S_IRWXU | S_IRWXO)) < 0) { /* Returns non-negative integer on success */
