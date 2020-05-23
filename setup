@@ -1,0 +1,9 @@
+#! /bin/bash
+cd /home/simon/Documents/Thesis/dpdk-18.11.2/dpdk-stable-18.11.2/usertools
+./dpdk-devbind.py -u 0000:03:00.0
+cd /home/simon/Documents/Thesis/netmap/LINUX
+rmmod ixgbe
+insmod ./netmap.ko
+insmod ./ixgbe/ixgbe.ko
+ifconfig enp3s0 up
+ip link set enp3s0 promisc on

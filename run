@@ -1,0 +1,2 @@
+#! /bin/bash
+./pkt-gen -i enp3s0 -f rx -o 4096
